@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "name": "echo-analytics-engine",
+  "capabilities": [
+    "echo.analyticsengine.health",
+    "echo.analyticsengine.dashboard",
+    "echo.analyticsengine.growth",
+    "echo.analyticsengine.metrics",
+    "echo.analyticsengine.snapshot",
+    "echo.analyticsengine.trends"
+  ],
+  "note": "arcanum_sdk.sdk_capabilities also has echo.analyticsengine.plans/upgrade/webhook_stripe registered, but no /plans, /upgrade, or /webhooks/stripe route exists in this repository's src/index.ts (routes are: /, /health, /dashboard, /growth, /metrics/:source, /snapshot, /trends) -- those 3 capabilities belong to a different service and are not claimed here. The separate echo.analytics.* namespace (revenue/kpis/funnels/ingest) is also a different, unrelated analytics product.",
+  "entrypoints": ["scripts/certforge_journey.py"],
+  "data_classification": "internal",
+  "network": "none"
+}

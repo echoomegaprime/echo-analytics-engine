@@ -117,12 +117,30 @@ function err(message: string, status = 400): Response {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
+// Constant-time comparison: a plain `===` on a secret leaks its length and
+// prefix-match progress through response timing. Compare fixed-length
+// buffers so elapsed time is independent of where (or whether) the values
+// diverge.
+export function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const bufA = enc.encode(a);
+  const bufB = enc.encode(b);
+  const len = Math.max(bufA.length, bufB.length, 1);
+  const padA = new Uint8Array(len);
+  const padB = new Uint8Array(len);
+  padA.set(bufA);
+  padB.set(bufB);
+  let diff = bufA.length ^ bufB.length;
+  for (let i = 0; i < len; i++) diff |= padA[i] ^ padB[i];
+  return diff === 0;
+}
+
 function isAuthorized(req: Request, env: Env): boolean {
   if (!env.ECHO_API_KEY) return false;
   const apiKey = req.headers.get('X-Echo-API-Key');
-  if (apiKey && apiKey === env.ECHO_API_KEY) return true;
+  if (apiKey && timingSafeEqual(apiKey, env.ECHO_API_KEY)) return true;
   const authHeader = req.headers.get('Authorization') || '';
-  if (authHeader.startsWith('Bearer ') && authHeader.slice(7) === env.ECHO_API_KEY) return true;
+  if (authHeader.startsWith('Bearer ') && timingSafeEqual(authHeader.slice(7), env.ECHO_API_KEY)) return true;
   return false;
 }
 
@@ -149,7 +167,7 @@ async function fetchServiceHealth(binding: Fetcher, path: string, name: string, 
   }
 }
 
-function safeNum(v: unknown, fallback = 0): number {
+export function safeNum(v: unknown, fallback = 0): number {
   if (typeof v === 'number') return v;
   if (typeof v === 'string') {
     const n = parseFloat(v);
@@ -158,7 +176,7 @@ function safeNum(v: unknown, fallback = 0): number {
   return fallback;
 }
 
-function nestedNum(obj: Record<string, unknown>, ...keys: string[]): number {
+export function nestedNum(obj: Record<string, unknown>, ...keys: string[]): number {
   let cur: unknown = obj;
   for (const k of keys) {
     if (cur === null || typeof cur !== 'object') return 0;
@@ -330,7 +348,7 @@ async function runSnapshot(env: Env): Promise<CollectedMetrics> {
 
 // ─── Delta Helpers ────────────────────────────────────────────────────────────
 
-function formatDelta(current: number, previous: number): string {
+export function formatDelta(current: number, previous: number): string {
   const diff = current - previous;
   if (diff === 0) return '0';
   return diff > 0 ? `+${diff.toLocaleString()}` : `${diff.toLocaleString()}`;
@@ -648,7 +666,7 @@ export default {
     }
   },
 
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(handleCron(env));
   },
 } satisfies ExportedHandler<Env>;
